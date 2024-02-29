@@ -1,26 +1,32 @@
-import mongoose from "mongoose";
+import mongoose, { Mongoose } from 'mongoose';
 
-let isConnected = false; // Track connection status
+const MONGODB_URL = process.env.MONGODB_URL;
 
-export const connectToDB = async () => {
-  mongoose.set("strictQuery", true);
+interface MongooseConnection {
+  conn: Mongoose | null;
+  promise: Promise<Mongoose> | null;
+}
 
-  if (isConnected) {
-    console.log("MongoDB is already connected");
-    return;
+let cached: MongooseConnection = (global as any).mongoose
+
+if(!cached) {
+  cached = (global as any).mongoose = { 
+    conn: null, promise: null 
   }
+}
 
-  try {
-    await mongoose.connect(process.env.MONGODB_URL, {
-      dbName: "VibeZone",
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+export const connectToDatabase = async () => {
+  if(cached.conn) return cached.conn;
 
-    isConnected = true;
+  if(!MONGODB_URL) throw new Error('Missing MONGODB_URL');
 
-    console.log("MongoDB is connected");
-  } catch (error) {
-    console.log(error);
-  }
-};
+  cached.promise = 
+    cached.promise || 
+    mongoose.connect(MONGODB_URL, { 
+      dbName: 'imaginary2', bufferCommands: false 
+    })
+
+  cached.conn = await cached.promise;
+
+  return cached.conn;
+}
